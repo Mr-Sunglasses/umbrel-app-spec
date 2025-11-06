@@ -1,0 +1,350 @@
+{
+    "$schema": "https://json-schema.org/draft-07/schema",
+    "title": "Umbrel App Manifest",
+    "markdownDescription": "Configuration file for Umbrel app metadata and settings",
+    "type": "object",
+    "properties": {
+        "manifestVersion": {
+            "title": "Manifest Version",
+            "markdownDescription": "The manifest format version. Version 1 is standard, version 1.1 adds support for lifecycle hooks, version 1.2 includes additional features.",
+            "type": "number",
+            "enum": [
+                1,
+                1.1,
+                1.2
+            ],
+            "default": 1
+        },
+        "id": {
+            "title": "App ID",
+            "markdownDescription": "Unique identifier for the app. Must be lowercase letters, numbers, and dashes only (e.g., 'my-awesome-app').",
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+        },
+        "category": {
+            "title": "Category",
+            "markdownDescription": "Primary category for the app in the Umbrel App Store.",
+            "type": "string",
+            "enum": [
+                "files",
+                "bitcoin",
+                "media",
+                "networking",
+                "social",
+                "automation",
+                "finance",
+                "ai",
+                "developer",
+                "crypto"
+            ]
+        },
+        "name": {
+            "title": "App Name",
+            "markdownDescription": "Human-readable display name shown in the Umbrel App Store.",
+            "type": "string"
+        },
+        "version": {
+            "title": "Version",
+            "markdownDescription": "Version number of the underlying software (e.g., '2.5.0').",
+            "type": "string"
+        },
+        "tagline": {
+            "title": "Tagline",
+            "markdownDescription": "Short one-liner (5-10 words) describing what the app does. Must not end with a period.",
+            "type": "string",
+            "pattern": "^[^.]$|^.+[^.]$",
+            "patternErrorMessage": "Tagline must not end with a period."
+        },
+        "description": {
+            "title": "Description",
+            "markdownDescription": "Comprehensive description (2-4 paragraphs) explaining features and use cases.",
+            "type": "string"
+        },
+        "releaseNotes": {
+            "title": "Release Notes",
+            "markdownDescription": "Release notes for updates. Should be empty for new app submissions.",
+            "type": "string",
+            "default": ""
+        },
+        "developer": {
+            "title": "Developer",
+            "markdownDescription": "Name or ID of the person, team, or organization that develops the original software.",
+            "type": ["string", "integer"]
+        },
+        "website": {
+            "title": "Website",
+            "markdownDescription": "Official website URL of the original software project.",
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+        },
+        "dependencies": {
+            "title": "Dependencies",
+            "markdownDescription": "Other Umbrel apps required for this app to function (e.g., ['bitcoin', 'lightning']).",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "default": [],
+            "uniqueItems": true
+        },
+        "implements": {
+            "title": "Implements",
+            "markdownDescription": "Protocols, standards, or technologies that this app implements or provides (e.g., ['bitcoin']).",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "default": [],
+            "uniqueItems": true
+        },
+        "repo": {
+            "title": "Repository",
+            "markdownDescription": "Source code repository URL for the original software project.",
+            "type": "string",
+            "pattern": "^https?://|^$",
+            "default": ""
+        },
+        "support": {
+            "title": "Support",
+            "markdownDescription": "Where users can get help (GitHub Issues, forum, Discord, etc.).",
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https?://"
+        },
+        "port": {
+            "title": "Port",
+            "markdownDescription": "External port number users will use to access the app (e.g., 8080).",
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+        },
+        "gallery": {
+            "title": "Gallery",
+            "markdownDescription": "Screenshot URLs or relative file paths for the app gallery (e.g., '1.jpg' or 'https://example.com/image.jpg'). Leave empty for new submissions.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "default": [],
+            "uniqueItems": true
+        },
+        "path": {
+            "title": "Path",
+            "markdownDescription": "Optional URL path suffix (e.g., '/admin'). Leave empty unless needed.",
+            "type": "string",
+            "default": ""
+        },
+        "defaultUsername": {
+            "title": "Default Username",
+            "markdownDescription": "Default username for app authentication. Leave empty if not applicable.",
+            "type": "string",
+            "default": ""
+        },
+        "defaultPassword": {
+            "title": "Default Password",
+            "markdownDescription": "Default password for app authentication. Omit if using deterministicPassword.",
+            "type": "string",
+            "default": ""
+        },
+        "deterministicPassword": {
+            "title": "Deterministic Password",
+            "markdownDescription": "Set to true if app generates password deterministically from $APP_PASSWORD.",
+            "type": "boolean",
+            "default": false
+        },
+        "submitter": {
+            "title": "Submitter",
+            "markdownDescription": "Your name or ID - the person packaging and submitting this app.",
+            "type": ["string", "integer"]
+        },
+        "submission": {
+            "title": "Submission",
+            "markdownDescription": "GitHub pull request URL or git commit link for the app submission (e.g., 'https://github.com/getumbrel/umbrel-apps/pull/123' or 'https://github.com/getumbrel/umbrel-apps/commit/abc123').",
+            "type": "string",
+            "format": "uri",
+            "pattern": "^(https://github\\.com/getumbrel/umbrel-apps/pull/|https://github\\.com/getumbrel/umbrel-apps/commit/|https://github\\.com/getumbrel/umbrel/pull/|https://github\\.com/getumbrel/umbrel/commit/)"
+        },
+        "permissions": {
+            "title": "Permissions",
+            "markdownDescription": "Special system permissions required by the app.",
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": [
+                    "STORAGE_DOWNLOADS",
+                    "GPU"
+                ]
+            },
+            "default": [],
+            "uniqueItems": true
+        },
+        "torOnly": {
+            "title": "Tor Only",
+            "markdownDescription": "Set to true if the app should only be accessible via Tor. Set to false (default) for normal clearnet access.",
+            "type": "boolean",
+            "default": false
+        },
+        "widgets": {
+            "title": "Widgets",
+            "markdownDescription": "Dashboard widgets that display app information on the Umbrel home screen. Each widget can show stats, lists, or other dynamic data from your app.",
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "title": "Widget ID",
+                        "markdownDescription": "Unique identifier for this widget (e.g., 'status', 'torrent-list').",
+                        "type": "string"
+                    },
+                    "type": {
+                        "title": "Widget Type",
+                        "markdownDescription": "The type of widget display (e.g., 'four-stats' for 4 stat boxes, 'list' for a list view).",
+                        "type": "string",
+                        "enum": [
+                            "four-stats",
+                            "three-stats",
+                            "list",
+                            "list-emoji",
+                            "text",
+                            "simple-list",
+                            "text-with-progress",
+                            "text-with-buttons"
+                        ]
+                    },
+                    "refresh": {
+                        "title": "Refresh Interval",
+                        "markdownDescription": "How often the widget should refresh its data (e.g., '5s', '30s', '1m').",
+                        "type": "string",
+                        "pattern": "^[0-9]+(s|m|h)$"
+                    },
+                    "endpoint": {
+                        "title": "Data Endpoint",
+                        "markdownDescription": "The endpoint to fetch widget data from (e.g., 'widget-server:80/widgets/status').",
+                        "type": "string"
+                    },
+                    "link": {
+                        "title": "Click Link",
+                        "markdownDescription": "Optional URL to navigate to when the widget is clicked. Leave empty for no link.",
+                        "type": "string",
+                        "default": ""
+                    },
+                    "example": {
+                        "title": "Example Data",
+                        "markdownDescription": "Example data structure showing what the widget will display. Used for preview and documentation.",
+                        "type": "object",
+                        "properties": {
+                            "type": {
+                                "type": "string"
+                            },
+                            "link": {
+                                "type": "string"
+                            },
+                            "title": {
+                                "type": "string"
+                            },
+                            "text": {
+                                "type": "string"
+                            },
+                            "progressLabel": {
+                                "type": "string"
+                            },
+                            "progress": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1
+                            },
+                            "count": {
+                                "type": "string"
+                            },
+                            "buttons": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "text": {
+                                            "type": "string"
+                                        },
+                                        "icon": {
+                                            "type": "string"
+                                        },
+                                        "link": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            },
+                            "items": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": {
+                                            "type": "string"
+                                        },
+                                        "text": {
+                                            "type": "string"
+                                        },
+                                        "subtext": {
+                                            "type": "string"
+                                        },
+                                        "emoji": {
+                                            "type": "string"
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "type",
+                    "refresh",
+                    "endpoint"
+                ],
+                "additionalProperties": true
+            },
+            "default": []
+        },
+        "disabled": {
+            "title": "Disabled",
+            "markdownDescription": "Set to true to disable the app from the app store. When disabled, the app won't be visible or installable by users.",
+            "type": "boolean",
+            "default": false
+        },
+        "backupIgnore": {
+            "title": "Backup Ignore",
+            "markdownDescription": "List of file or directory paths to exclude from app backups. Useful for excluding large or temporary data directories.",
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "default": [],
+            "uniqueItems": true
+        },
+        "optimizedForUmbrelHome": {
+            "title": "Optimized for Umbrel Home",
+            "markdownDescription": "Set to true if this app is optimized specifically for Umbrel Home hardware.",
+            "type": "boolean",
+            "default": false
+        }
+    },
+    "required": [
+        "manifestVersion",
+        "id",
+        "category",
+        "name",
+        "version",
+        "tagline",
+        "description",
+        "developer",
+        "website",
+        "repo",
+        "support",
+        "port",
+        "submitter",
+        "submission"
+    ],
+    "additionalProperties": false
+}
