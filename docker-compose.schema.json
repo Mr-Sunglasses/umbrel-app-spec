@@ -23,12 +23,6 @@
                             "title": "App Proxy Service",
                             "markdownDescription": "Umbrel's proxy service for routing and authentication. Required for web apps.",
                             "properties": {
-                                "image": {
-                                    "title": "Proxy Image",
-                                    "markdownDescription": "Nginx proxy image for routing and authentication.",
-                                    "type": "string",
-                                    "const": "nginxproxy/nginx-proxy"
-                                },
                                 "environment": {
                                     "title": "Proxy Configuration",
                                     "markdownDescription": "App proxy environment variables for routing and auth configuration.",
@@ -42,11 +36,11 @@
                                         },
                                         "APP_PORT": {
                                             "title": "App Port",
-                                            "markdownDescription": "Internal port the app listens on (e.g., '3000', '8080'). Must be a string.",
-                                            "type": "string",
-                                            "pattern": "^[0-9]+$",
+                                            "markdownDescription": "Internal port the app listens on (e.g., '3000', 8080). Can be string or integer.",
+                                            "type": ["string", "integer"],
                                             "minimum": 1,
-                                            "maximum": 65535
+                                            "maximum": 65535,
+                                            "pattern": "^[0-9]+$"
                                         },
                                         "PROXY_AUTH_ADD": {
                                             "title": "Disable Authentication",
@@ -68,7 +62,7 @@
                                     "required": ["APP_HOST", "APP_PORT"]
                                 }
                             },
-                            "required": ["image", "environment"]
+                            "required": ["environment"]
                         },
                         {
                             "title": "Application Service",
@@ -97,47 +91,83 @@
                                 },
                                 "volumes": {
                                     "title": "Volume Mounts",
-                                    "markdownDescription": "Persistent storage using Umbrel environment variables.",
+                                    "markdownDescription": "Persistent storage using Umbrel environment variables. ⚠️ **Communal Storage Warning**: Using `${UMBREL_ROOT}/data/storage/` requires STORAGE_DOWNLOADS permission in umbrel-app.yml.",
                                     "type": "array",
                                     "items": {
                                         "type": "string",
+                                        "pattern": "^\\$\\{(APP_DATA_DIR|UMBREL_ROOT|APP_LIGHTNING_NODE_DATA_DIR|APP_BITCOIN_DATA_DIR|APP_STORAGE_DIR)\\}/[^:]+:(/[^:]*)?(rw|ro)?(:delegated|:cached|:consistent)?$",
                                         "examples": [
                                             "${APP_DATA_DIR}/data:/data",
-                                            "${APP_STORAGE_DIR}/downloads:/downloads",
-                                            "${UMBREL_ROOT}/data/bitcoin:/bitcoin:ro",
-                                            "${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro"
+                                            "${APP_DATA_DIR}/config:/config:rw",
+                                            "${UMBREL_ROOT}/data/storage/downloads:/downloads",
+                                            "${UMBREL_ROOT}/data/storage/media:/media:ro",
+                                            "${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro",
+                                            "${APP_BITCOIN_DATA_DIR}:/bitcoin:ro"
+                                        ],
+                                        "enum": [
+                                            "${APP_DATA_DIR}/",
+                                            "${UMBREL_ROOT}/data/storage/"
                                         ]
                                     }
                                 },
                                 "environment": {
                                     "title": "Environment Variables",
-                                    "markdownDescription": "Container environment variables. Umbrel provides special variables: $APP_PASSWORD, $APP_SEED, $DEVICE_HOSTNAME, $DEVICE_DOMAIN_NAME, $TOR_PROXY_IP, $TOR_PROXY_PORT, $APP_HIDDEN_SERVICE.",
-                                    "oneOf": [
-                                        {
-                                            "type": "object",
-                                            "patternProperties": {
-                                                "^[A-Z_][A-Z0-9_]*$": {
-                                                    "type": "string"
-                                                }
-                                            }
-                                        },
-                                        {
-                                            "type": "array",
-                                            "items": {
-                                                "type": "string",
-                                                "pattern": "^[A-Z_][A-Z0-9_]*=.*$"
-                                            }
+                                    "markdownDescription": "Container environment variables. Umbrel provides special variables:\n\n**System Level:**\n• `$DEVICE_HOSTNAME` - Server device hostname (e.g., \"umbrel\") 💡 Display device name in UI\n• `$DEVICE_DOMAIN_NAME` - .local domain name (e.g., \"umbrel.local\") 💡 Create links to other services\n\n**Tor Proxy:**\n• `$TOR_PROXY_IP` - Local IP of Tor SOCKS proxy 💡 Route app traffic through Tor for privacy\n• `$TOR_PROXY_PORT` - Tor proxy port (typically 9050) 💡 Combine with $TOR_PROXY_IP\n\n**App Specific:**\n• `$APP_HIDDEN_SERVICE` - Your app's .onion address 💡 Display for anonymous Tor access\n• `$APP_PASSWORD` - Unique random password shown in Umbrel UI 💡 Use for app authentication\n• `$APP_SEED` - 256-bit deterministic seed from user's Umbrel seed 💡 Generate deterministic keys",
+                                    "type": "object",
+                                    "patternProperties": {
+                                        "^[A-Z_][A-Z0-9_]*$": {
+                                            "type": "string"
                                         }
-                                    ]
+                                    },
+                                    "examples": {
+                                        "DEVICE_HOSTNAME": "$DEVICE_HOSTNAME",
+                                        "TOR_CONFIG": "$TOR_PROXY_IP:$TOR_PROXY_PORT",
+                                        "APP_AUTH": "password:$APP_PASSWORD",
+                                        "TOR_HIDDEN_SERVICE": "$APP_HIDDEN_SERVICE",
+                                        "DETERMINISTIC_KEY": "derived_from_$APP_SEED"
+                                    }
                                 },
                                 "depends_on": {
                                     "title": "Dependencies",
                                     "markdownDescription": "Services that must start before this service. Can reference Umbrel apps: 'bitcoin', 'lightning'.",
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string",
-                                        "pattern": "^[a-z0-9._-]+$"
-                                    }
+                                    "oneOf": [
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string",
+                                                "pattern": "^[a-z0-9._-]+$"
+                                            },
+                                            "examples": ["bitcoin", "lightning", "database"]
+                                        },
+                                        {
+                                            "type": "object",
+                                            "patternProperties": {
+                                                "^[a-z0-9._-]+$": {
+                                                    "type": "object",
+                                                    "properties": {
+                                                        "condition": {
+                                                            "title": "Dependency Condition",
+                                                            "markdownDescription": "Condition for dependency to be considered ready.",
+                                                            "type": "string",
+                                                            "enum": ["service_started", "service_healthy", "service_completed_successfully"]
+                                                        }
+                                                    },
+                                                    "required": ["condition"]
+                                                }
+                                            }
+                                        }
+                                    ],
+                                    "examples": [
+                                        ["bitcoin", "lightning"],
+                                        {
+                                            "db": {
+                                                "condition": "service_healthy"
+                                            },
+                                            "redis": {
+                                                "condition": "service_started"
+                                            }
+                                        }
+                                    ]
                                 }
                             },
                             "required": ["image"]
@@ -161,7 +191,6 @@
                         "volumes": ["${APP_DATA_DIR}/html:/usr/share/nginx/html"]
                     },
                     "app_proxy": {
-                        "image": "nginxproxy/nginx-proxy",
                         "environment": {
                             "APP_HOST": "web_1",
                             "APP_PORT": "80"
@@ -189,7 +218,6 @@
                         "depends_on": ["bitcoin", "lightning"]
                     },
                     "app_proxy": {
-                        "image": "nginxproxy/nginx-proxy",
                         "environment": {
                             "APP_HOST": "app_1",
                             "APP_PORT": "3000",
