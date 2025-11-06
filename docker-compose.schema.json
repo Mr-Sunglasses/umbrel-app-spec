@@ -91,11 +91,10 @@
                                 },
                                 "volumes": {
                                     "title": "Volume Mounts",
-                                    "markdownDescription": "Persistent storage using Umbrel environment variables. ⚠️ **Communal Storage Warning**: Using `${UMBREL_ROOT}/data/storage/` requires STORAGE_DOWNLOADS permission in umbrel-app.yml.",
+                                    "markdownDescription": "Persistent storage using Umbrel environment variables. ⚠️ **Communal Storage Warning**: Using `${UMBREL_ROOT}/data/storage/` requires STORAGE_DOWNLOADS permission in umbrel-app.yml.\n\n**Available Umbrel variables:**\n• `${APP_DATA_DIR}/` - App-specific data directory\n• `${UMBREL_ROOT}/data/storage/` - Communal storage area\n• `${APP_LIGHTNING_NODE_DATA_DIR}` - Lightning node data\n• `${APP_BITCOIN_DATA_DIR}` - Bitcoin node data",
                                     "type": "array",
                                     "items": {
                                         "type": "string",
-                                        "pattern": "^\\$\\{(APP_DATA_DIR|UMBREL_ROOT|APP_LIGHTNING_NODE_DATA_DIR|APP_BITCOIN_DATA_DIR|APP_STORAGE_DIR)\\}/[^:]+:(/[^:]*)?(rw|ro)?(:delegated|:cached|:consistent)?$",
                                         "examples": [
                                             "${APP_DATA_DIR}/data:/data",
                                             "${APP_DATA_DIR}/config:/config:rw",
@@ -103,10 +102,6 @@
                                             "${UMBREL_ROOT}/data/storage/media:/media:ro",
                                             "${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro",
                                             "${APP_BITCOIN_DATA_DIR}:/bitcoin:ro"
-                                        ],
-                                        "enum": [
-                                            "${APP_DATA_DIR}/",
-                                            "${UMBREL_ROOT}/data/storage/"
                                         ]
                                     }
                                 },
@@ -116,16 +111,21 @@
                                     "type": "object",
                                     "patternProperties": {
                                         "^[A-Z_][A-Z0-9_]*$": {
-                                            "type": "string"
+                                            "type": ["string", "integer", "boolean"]
                                         }
                                     },
-                                    "examples": {
-                                        "DEVICE_HOSTNAME": "$DEVICE_HOSTNAME",
-                                        "TOR_CONFIG": "$TOR_PROXY_IP:$TOR_PROXY_PORT",
-                                        "APP_AUTH": "password:$APP_PASSWORD",
-                                        "TOR_HIDDEN_SERVICE": "$APP_HIDDEN_SERVICE",
-                                        "DETERMINISTIC_KEY": "derived_from_$APP_SEED"
-                                    }
+                                    "examples": [
+                                        {
+                                            "DEVICE_HOSTNAME": "$DEVICE_HOSTNAME",
+                                            "TOR_CONFIG": "$TOR_PROXY_IP:$TOR_PROXY_PORT",
+                                            "APP_AUTH": "password:$APP_PASSWORD",
+                                            "TOR_HIDDEN_SERVICE": "$APP_HIDDEN_SERVICE",
+                                            "DETERMINISTIC_KEY": "derived_from_$APP_SEED",
+                                            "DB_PORT": 3306,
+                                            "ENABLE_FEATURE": true,
+                                            "MYSQL_RANDOM_ROOT_PASSWORD": "yes"
+                                        }
+                                    ]
                                 },
                                 "depends_on": {
                                     "title": "Dependencies",
@@ -167,6 +167,41 @@
                                                 "condition": "service_started"
                                             }
                                         }
+                                    ]
+                                },
+                                "network_mode": {
+                                    "title": "Network Mode",
+                                    "markdownDescription": "Network mode for the container. Use 'host' to share host's network stack.",
+                                    "type": "string",
+                                    "enum": ["bridge", "host", "none", "service:.*"],
+                                    "examples": ["bridge", "host"]
+                                },
+                                "cap_add": {
+                                    "title": "Add Capabilities",
+                                    "markdownDescription": "Add Linux capabilities to the container. Common values: NET_ADMIN, SYS_ADMIN.",
+                                    "type": "array",
+                                    "items": {
+                                        "type": "string",
+                                        "examples": ["NET_ADMIN", "SYS_ADMIN", "CAP_NET_RAW"]
+                                    }
+                                },
+                                "command": {
+                                    "title": "Override Command",
+                                    "markdownDescription": "Override the default container command.",
+                                    "oneOf": [
+                                        {
+                                            "type": "string"
+                                        },
+                                        {
+                                            "type": "array",
+                                            "items": {
+                                                "type": "string"
+                                            }
+                                        }
+                                    ],
+                                    "examples": [
+                                        "--config /app/config.yml",
+                                        ["--no-check-update", "-c", "/opt/adguardhome/conf/AdGuardHome.yaml"]
                                     ]
                                 }
                             },
