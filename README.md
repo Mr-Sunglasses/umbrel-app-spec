@@ -12,6 +12,7 @@ In order to minimize friction and maximize productivity, Umbrel provides its own
 
 ```
 "yaml.schemas": {
-    "https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/umbrel-app.schema.json": "umbrel-app.yml"
+    "https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/umbrel-app.schema.json": "umbrel-app.yml",
+    "https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/docker-compose.schema.json": "docker-compose*.yml"
  },
 ```
