@@ -1,114 +1,177 @@
 {
     "$schema": "https://json-schema.org/draft-07/schema",
     "title": "Umbrel Docker Compose Configuration",
-    "markdownDescription": "Docker Compose configuration for Umbrel apps. This is a permissive schema that provides help and autocompletion for Umbrel-specific features without strict validation.",
+    "markdownDescription": "Docker Compose configuration for Umbrel apps. This schema provides helpful information and autocomplete for Umbrel-specific features without strict validation. All standard Docker Compose properties are supported.",
     "type": "object",
     "properties": {
         "version": {
             "title": "Docker Compose Version",
-            "markdownDescription": "Umbrel requires exactly version 3.7",
+            "markdownDescription": "⚠️ **Umbrel requires exactly version 3.7**\n\nThis is the only supported Docker Compose version for Umbrel apps.",
             "type": "string",
-            "default": "3.7"
+            "default": "3.7",
+            "examples": [
+                "3.7"
+            ]
         },
         "services": {
             "title": "Services",
-            "markdownDescription": "Container services for the application. Umbrel supports any valid Docker Compose service configuration with special help for Umbrel-specific features.",
+            "markdownDescription": "**🐳 Docker Compose Services** - Define your app's containers here.\n\n---\n\n## 🔐 Special Service: `app_proxy`\n\n**What is it?**\nThe Umbrel App Proxy is a special service that automatically protects your app by requiring users to enter their Umbrel password before accessing it.\n\n**How it works:**\n- Users authenticate when logging into the Web UI or visiting your app directly (e.g., `http://umbrel.local:3002`)\n- Acts as a reverse proxy in front of your app\n- Handles authentication, SSL/TLS, and routing automatically\n\n**Required Configuration:**\n```yaml\napp_proxy:\n  environment:\n    APP_HOST: myapp_web_1        # DNS name of your web container\n    APP_PORT: \"80\"               # Port your app listens on\n```\n\n---\n\n### 🚫 Disabling Authentication\n\nSome apps have their own authentication system and don't need Umbrel's login.\n\n**To disable authentication** (while keeping the proxy active for routing):\n```yaml\napp_proxy:\n  environment:\n    APP_HOST: myapp_web_1\n    APP_PORT: \"80\"\n    PROXY_AUTH_ADD: \"false\"      # Disables Umbrel login requirement\n```\n\n⚠️ **Important:** This only disables authentication, not the proxy service itself. The proxy still handles routing and is required unless using `host` network mode.\n\n---\n\n### 🎯 Selective Authentication (Whitelist/Blacklist)\n\n**Use Case 1: Public UI + Protected API**\n\nIf your app has a public interface at `/` but an admin API at `/api` that needs protection:\n\n```yaml\napp_proxy:\n  environment:\n    APP_HOST: myapp_web_1\n    APP_PORT: \"80\"\n    PROXY_AUTH_WHITELIST: \"/api/*\"  # Bypasses auth for API calls\n```\n\nResult:\n- `/` → Requires Umbrel password ✅\n- `/api/*` → No Umbrel password (use your app's API tokens) ⚡\n\n**Use Case 2: Public Root + Protected Admin**\n\nIf you want the root (`/`) publicly accessible but admin section protected:\n\n```yaml\napp_proxy:\n  environment:\n    APP_HOST: myapp_web_1\n    APP_PORT: \"80\"\n    PROXY_AUTH_WHITELIST: \"*\"        # Bypass auth for everything\n    PROXY_AUTH_BLACKLIST: \"/admin/*\" # Except admin section\n```\n\nResult:\n- `/` → Public access (no password) 🌐\n- `/admin/*` → Requires Umbrel password 🔒\n\n**Use Case 3: Public Access + Protected Settings**\n\nMultiple protected paths:\n\n```yaml\napp_proxy:\n  environment:\n    APP_HOST: myapp_web_1\n    APP_PORT: \"80\"\n    PROXY_AUTH_WHITELIST: \"*\"\n    PROXY_AUTH_BLACKLIST: \"/admin/*,/settings/*,/config/*\"\n```\n\n---\n\n### 📝 Path Pattern Syntax\n\n- `\"/api/*\"` - Matches `/api/` and everything under it\n- `\"/public/*,/health\"` - Comma-separated for multiple paths\n- `\"*\"` - Matches everything (use carefully!)\n- Blacklist overrides whitelist when both are set\n\n---\n\n### 🔍 Common Examples\n\n**Example 1: Simple Protected App**\n```yaml\nservices:\n  web:\n    image: myapp:latest\n    volumes:\n      - ${APP_DATA_DIR}/data:/data\n  \n  app_proxy:\n    environment:\n      APP_HOST: myapp_web_1\n      APP_PORT: \"3000\"\n```\n\n**Example 2: App with Own Auth**\n```yaml\nservices:\n  web:\n    image: myapp:latest\n  \n  app_proxy:\n    environment:\n      APP_HOST: myapp_web_1\n      APP_PORT: \"8080\"\n      PROXY_AUTH_ADD: \"false\"  # App has its own login\n```\n\n**Example 3: Hybrid Authentication**\n```yaml\nservices:\n  web:\n    image: dokuwiki:latest\n  \n  app_proxy:\n    environment:\n      APP_HOST: dokuwiki_web_1\n      APP_PORT: \"80\"\n      PROXY_AUTH_WHITELIST: \"/api/*,/webhooks/*\"\n      # API/webhooks are public, everything else needs Umbrel password\n```\n\n---\n\n### ⚙️ Technical Details\n\n**APP_HOST Format:**\n- Pattern: `{image-name}_{service-name}_1`\n- If image is `nginx:alpine` and service is `web` → `nginx_web_1`\n- If image is `ghcr.io/user/myapp:v1` and service is `server` → `myapp_server_1`\n\n**APP_PORT:**\n- Internal port your container listens on (not the external Umbrel port)\n- Can be string or integer: `\"80\"`, `3000`, `\"8080\"`\n- This is the port inside your container, not the `port:` in umbrel-app.yml\n\n---\n\n💡 **Best Practices:**\n- Use `app_proxy` for all web-accessible apps (unless using `host` network mode)\n- Only disable authentication if your app has robust built-in auth\n- Be cautious with whitelist `\"*\"` - only use with blacklist to protect sensitive paths\n- Test authentication rules thoroughly before submitting\n\n---",
             "type": "object",
-            "patternProperties": {
-                "^[a-zA-Z0-9._-]+$": {
-                    "type": "object",
-                    "oneOf": [
-                        {
-                            "title": "Umbrel App Proxy Service",
-                            "markdownDescription": "Umbrel's proxy service for routing and authentication. Use 'app_proxy' as the service name for automatic configuration.",
-                            "properties": {
-                                "environment": {
-                                    "title": "App Proxy Configuration",
-                                    "markdownDescription": "**Umbrel App Proxy Environment Variables:**\n\n**Required:**\n• `APP_HOST` - DNS name of web container (format: imagename_servicename_1)\n• `APP_PORT` - Internal port app listens on (string or integer)\n\n**Optional:**\n• `PROXY_AUTH_ADD` - Set to 'false' to disable authentication while keeping proxy active\n• `PROXY_AUTH_WHITELIST` - URL paths to bypass authentication (e.g., '/api/*')\n• `PROXY_AUTH_BLACKLIST` - URL paths to require authentication (e.g., '/admin/*')",
-                                    "type": "object",
-                                    "properties": {
-                                        "APP_HOST": {
-                                            "title": "App Host",
-                                            "markdownDescription": "DNS name of the web container. Example: 'myapp_web_1'",
-                                            "type": "string",
-                                            "examples": ["myapp_web_1", "akaunting_app_1", "nginx_server_1"]
-                                        },
-                                        "APP_PORT": {
-                                            "title": "App Port",
-                                            "markdownDescription": "Internal port the app listens on. Can be string or integer.",
-                                            "type": ["string", "integer"],
-                                            "examples": [80, 3000, "8080", "9000"]
-                                        },
-                                        "PROXY_AUTH_ADD": {
-                                            "title": "Disable Authentication",
-                                            "markdownDescription": "Set to 'false' to disable Umbrel authentication while keeping proxy active.",
-                                            "type": "string",
-                                            "enum": ["false"]
-                                        },
-                                        "PROXY_AUTH_WHITELIST": {
-                                            "title": "Auth Whitelist",
-                                            "markdownDescription": "URL paths to bypass authentication (comma separated or multiple lines).",
-                                            "type": "string",
-                                            "examples": ["/api/*", "/public/*,/health", "/webhooks/*,/metrics"]
-                                        },
-                                        "PROXY_AUTH_BLACKLIST": {
-                                            "title": "Auth Blacklist",
-                                            "markdownDescription": "URL paths to require authentication (comma separated or multiple lines).",
-                                            "type": "string",
-                                            "examples": ["/admin/*", "/settings,/users", "/api/admin/*"]
-                                        }
-                                    }
-                                }
-                            }
+            "additionalProperties": {
+                "type": "object",
+                "properties": {
+                    "image": {
+                        "title": "Docker Image",
+                        "markdownDescription": "**🐳 Docker Image** - The container image to use for this service.\n\n**Format:** `[registry/]repository[:tag]`\n\n**Image Sources:**\n\n• **Docker Hub** (default registry):\n  - `nginx:alpine` - Official Nginx image\n  - `postgres:15` - PostgreSQL version 15\n  - `username/myapp:latest` - User repository\n\n• **GitHub Container Registry:**\n  - `ghcr.io/owner/repo:tag`\n  - Example: `ghcr.io/getumbrel/umbrel-app:v1.0.0`\n\n• **Other Registries:**\n  - `gcr.io/project/image:tag` - Google Container Registry\n  - `quay.io/org/image:tag` - Red Hat Quay\n\n**Tag Best Practices:**\n\n✅ **Recommended:**\n- Specific versions: `nginx:1.25.3`, `postgres:15.4`\n- Semantic versions: `myapp:v1.2.3`\n- SHA digests: `myapp@sha256:abc123...` (most reproducible)\n\n⚠️ **Avoid:**\n- `latest` tag (can break unexpectedly when image updates)\n- Mutable tags that change over time\n\n**Examples:**\n```yaml\nimage: nginx:1.25.3-alpine              # Specific version\nimage: postgres:15                       # Major version\nimage: ghcr.io/user/app:v1.0.0          # GitHub registry\nimage: redis:7-alpine                    # Alpine variant (smaller)\n```\n\n💡 **For Umbrel apps:** Always pin to specific versions to ensure reproducible builds and prevent unexpected breaks.",
+                        "type": "string",
+                        "examples": [
+                            "nginx:alpine",
+                            "postgres:15",
+                            "ghcr.io/owner/repo:tag"
+                        ]
+                    },
+                    "restart": {
+                        "title": "Restart Policy",
+                        "markdownDescription": "⚠️ **Umbrel strongly recommends: `on-failure`**\n\nControls when Docker automatically restarts your container.\n\n**Options:**\n\n• **`on-failure`** ✅ **RECOMMENDED** - Restart only if container crashes or exits with error\n  - Containers auto-recover from crashes\n  - Won't restart if manually stopped by user\n  - Best for production reliability\n\n• **`always`** ⚠️ Not recommended - Restart regardless of exit status\n  - Will restart even if user manually stops the app\n  - Can cause issues with Umbrel's app management\n\n• **`unless-stopped`** ⚠️ Not recommended - Similar to always\n  - Restarts unless explicitly stopped\n  - May interfere with updates and user control\n\n• **`no`** ❌ Avoid - Never restart automatically\n  - Container stays down after any crash\n  - Requires manual intervention to recover\n  - Poor user experience\n\n💡 **Why `on-failure` is best:** It balances reliability (auto-recovery from crashes) with user control (respects manual stops).",
+                        "type": "string",
+                        "enum": [
+                            "no",
+                            "always",
+                            "on-failure",
+                            "unless-stopped"
+                        ],
+                        "default": "on-failure"
+                    },
+                    "ports": {
+                        "title": "Port Mappings",
+                        "markdownDescription": "**🔌 Port Configuration** - Expose container ports to the host system.\n\n⚠️ **Important:** Most Umbrel apps should NOT define ports here. Use the `port:` field in `umbrel-app.yml` instead and let Umbrel's `app_proxy` handle routing.\n\n**When to use:**\n- Internal communication between services (don't expose to host)\n- Services that need direct port access (bypassing app_proxy)\n- Database containers accessed by other containers\n\n**Format Options:**\n\n1. **Simple port:** `3000` - Expose container port 3000 to random host port\n2. **Port mapping:** `\"8080:80\"` - Map host port 8080 to container port 80\n3. **Bind to specific IP:** `\"127.0.0.1:5432:5432\"` - Only localhost can access\n4. **UDP protocol:** `\"8125:8125/udp\"` - For UDP traffic\n\n**Examples:**\n```yaml\nports:\n  - \"8080:80\"              # HTTP traffic\n  - \"127.0.0.1:5432:5432\"  # PostgreSQL (localhost only)\n  - \"8125:8125/udp\"        # StatsD UDP\n```\n\n💡 **Best Practice:** For web apps, omit `ports:` and use `app_proxy` service instead. This provides Umbrel authentication and proper routing.",
+                        "type": "array",
+                        "items": {
+                            "type": [
+                                "string",
+                                "integer"
+                            ]
                         },
-                        {
-                            "title": "Regular Application Service",
-                            "markdownDescription": "Standard Docker service with optional Umbrel environment variables and volume mounts.",
-                            "properties": {
-                                "volumes": {
-                                    "title": "Volume Mounts",
-                                    "markdownDescription": "**Umbrel Storage Variables:**\n\n**App Storage:**\n• `${APP_DATA_DIR}/` - App-specific data directory\n• `${APP_LIGHTNING_NODE_DATA_DIR}` - Lightning node data\n• `${APP_BITCOIN_DATA_DIR}` - Bitcoin node data\n\n**Communal Storage (requires STORAGE_DOWNLOADS permission):**\n• `${UMBREL_ROOT}/data/storage/` - Shared storage area\n\n**Examples:**\n• `${APP_DATA_DIR}/data:/app/data`\n• `${UMBREL_ROOT}/data/storage/downloads:/downloads`\n• `${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro`",
-                                    "type": "array",
-                                    "items": {
-                                        "type": "string"
-                                    },
-                                    "examples": [
-                                        "${APP_DATA_DIR}/data:/app/data",
-                                        "${APP_DATA_DIR}/config:/etc/app:ro",
-                                        "${UMBREL_ROOT}/data/storage/downloads:/downloads",
-                                        "${UMBREL_ROOT}/data/storage/media:/media:rw",
-                                        "${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro",
-                                        "${APP_BITCOIN_DATA_DIR}:/bitcoin:ro"
-                                    ]
-                                },
-                                "environment": {
-                                    "title": "Environment Variables",
-                                    "markdownDescription": "**Umbrel Special Variables:**\n\n**System Level:**\n• `$DEVICE_HOSTNAME` - Server hostname (e.g., \"umbrel\") 💡 Display device name in UI\n• `$DEVICE_DOMAIN_NAME` - .local domain (e.g., \"umbrel.local\") 💡 Create links to services\n\n**Tor Proxy:**\n• `$TOR_PROXY_IP` - Local Tor SOCKS proxy IP 💡 Route traffic through Tor\n• `$TOR_PROXY_PORT` - Tor proxy port (typically 9050) 💡 Combine with $TOR_PROXY_IP\n\n**App Specific:**\n• `$APP_HIDDEN_SERVICE` - App's .onion address 💡 Display for anonymous Tor access\n• `$APP_PASSWORD` - Random password shown in Umbrel UI 💡 Use for authentication\n• `$APP_SEED` - 256-bit seed from user's Umbrel seed 💡 Generate deterministic keys",
-                                    "type": "object",
-                                    "patternProperties": {
-                                        "^[A-Z_][A-Z0-9_]*$": {}
-                                    },
-                                    "examples": [
-                                        {
-                                            "DEVICE_HOSTNAME": "$DEVICE_HOSTNAME",
-                                            "TOR_PROXY_CONFIG": "$TOR_PROXY_IP:$TOR_PROXY_PORT",
-                                            "APP_AUTH_PASSWORD": "$APP_PASSWORD",
-                                            "APP_TOR_ADDRESS": "$APP_HIDDEN_SERVICE",
-                                            "DETERMINISTIC_KEY": "derived_from_$APP_SEED",
-                                            "DB_PORT": 3306,
-                                            "ENABLE_FEATURE": true,
-                                            "APP_NAME": "My Awesome App"
-                                        }
-                                    ]
+                        "examples": [
+                            [
+                                "8080:80"
+                            ],
+                            [
+                                "3000"
+                            ],
+                            [
+                                "127.0.0.1:5432:5432"
+                            ]
+                        ]
+                    },
+                    "volumes": {
+                        "title": "Volume Mounts",
+                        "markdownDescription": "**📁 Umbrel Storage Variables** provide persistent data storage for your app.\n\n---\n\n**🔒 App-Specific Private Storage:**\n\n• **`${APP_DATA_DIR}/`** - Your app's private data directory\n  - Unique to your app, not accessible to other apps\n  - Persists across app updates and restarts\n  - Included in Umbrel backups by default\n  - Use case: Store app configuration, databases, user data\n  - Example path: `/home/umbrel/umbrel/app-data/myapp/data`\n  - Usage: `${APP_DATA_DIR}/database:/var/lib/mysql`\n\n---\n\n**🌐 Communal Shared Storage:**\n\n• **`${UMBREL_ROOT}/data/storage/`** - Shared storage accessible across multiple apps\n  - ⚠️ **Requires permission:** Add `STORAGE_DOWNLOADS` to `permissions:` array in umbrel-app.yml\n  - Shared between all apps that have this permission\n  - Use case: Access user's downloads, media library, or shared files\n  - Common subdirectories:\n    - `downloads/` - Downloaded files\n    - `media/` - Photos, videos, music\n    - `documents/` - Shared documents\n  - Example: `${UMBREL_ROOT}/data/storage/downloads:/app/downloads`\n  - Security: Only request this permission if your app genuinely needs shared storage access\n\n---\n\n**₿ Bitcoin & Lightning Data** (requires dependencies in umbrel-app.yml):\n\n• **`${APP_BITCOIN_DATA_DIR}`** - Bitcoin Core blockchain and data\n  - Requires: `dependencies: [\"bitcoin\"]` in umbrel-app.yml\n  - Contains: Blockchain data, wallet, bitcoin.conf\n  - Typically mounted read-only: `:ro`\n  - Use case: Access Bitcoin blockchain for validation or queries\n  - Example: `${APP_BITCOIN_DATA_DIR}:/bitcoin:ro`\n\n• **`${APP_LIGHTNING_NODE_DATA_DIR}`** - Lightning Network node data\n  - Requires: `dependencies: [\"lightning\"]` in umbrel-app.yml\n  - Contains: LND data, TLS certificates, macaroons for authentication\n  - Typically mounted read-only: `:ro`\n  - Use case: Connect to user's Lightning node programmatically\n  - Example: `${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro`\n\n---\n\n**📝 Volume Mount Format:**\n\n**Syntax:** `host_path:container_path[:mode]`\n\n- `host_path` - Path on Umbrel system (use variables like `${APP_DATA_DIR}`)\n- `container_path` - Path inside your container (e.g., `/app/data`)\n- `mode` - Optional access mode:\n  - `rw` - Read-write (default)\n  - `ro` - Read-only (recommended for sensitive data like Bitcoin/Lightning)\n\n**Examples:**\n\n```yaml\nvolumes:\n  # App private storage (read-write)\n  - ${APP_DATA_DIR}/data:/app/data\n  \n  # App config (read-only)\n  - ${APP_DATA_DIR}/config:/etc/myapp:ro\n  \n  # Shared downloads folder (requires STORAGE_DOWNLOADS permission)\n  - ${UMBREL_ROOT}/data/storage/downloads:/downloads:rw\n  \n  # Bitcoin blockchain (read-only, requires bitcoin dependency)\n  - ${APP_BITCOIN_DATA_DIR}:/bitcoin:ro\n  \n  # Lightning node data (read-only, requires lightning dependency)\n  - ${APP_LIGHTNING_NODE_DATA_DIR}:/lnd:ro\n```\n\n💡 **Best Practices:**\n- Always use Umbrel variables instead of hardcoded paths\n- Use read-only (`:ro`) for data you only need to read\n- Request `STORAGE_DOWNLOADS` permission only if genuinely needed\n- Organize your app data into subdirectories for clarity",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
+                        },
+                        "examples": [
+                            [
+                                "${APP_DATA_DIR}/data:/app/data"
+                            ],
+                            [
+                                "${APP_DATA_DIR}/config:/etc/app:ro",
+                                "${UMBREL_ROOT}/data/storage/downloads:/downloads"
+                            ]
+                        ]
+                    },
+                    "environment": {
+                        "title": "Environment Variables",
+                        "markdownDescription": "**🔧 Umbrel Special Variables** are automatically injected by the Umbrel system and available to all containers.\n\n---\n\n**📱 System & Device Information:**\n\n• **`$DEVICE_HOSTNAME`** - The hostname of the user's Umbrel device (typically \"umbrel\")\n  - Use case: Display the device name in your app's UI or logs\n  - Example value: `umbrel`\n\n• **`$DEVICE_DOMAIN_NAME`** - The .local mDNS domain of the device\n  - Use case: Generate links to other services on the local network\n  - Example value: `umbrel.local`\n\n---\n\n**🧅 Tor Network Integration:**\n\n• **`$TOR_PROXY_IP`** - IP address of Umbrel's Tor SOCKS5 proxy\n  - Use case: Route your app's traffic through Tor for privacy\n  - Combine with `$TOR_PROXY_PORT` to get full proxy address\n  - Example value: `10.21.0.1`\n\n• **`$TOR_PROXY_PORT`** - Port number of the Tor SOCKS5 proxy (typically 9050)\n  - Use case: Configure proxy settings like `$TOR_PROXY_IP:$TOR_PROXY_PORT`\n  - Example value: `9050`\n  - Common usage: `TOR_PROXY=$TOR_PROXY_IP:$TOR_PROXY_PORT`\n\n---\n\n**🔐 App-Specific Security & Authentication:**\n\n• **`$APP_PASSWORD`** - Automatically generated random 32-character password\n  - Use case: Default password for your app's admin interface\n  - Displayed in Umbrel UI for users to copy\n  - Regenerated on each app installation\n  - Example value: `mYsUperSeCurErandoMp@ssw0rd123456`\n\n• **`$APP_SEED`** - Deterministic 256-bit seed unique to this app installation\n  - Use case: Generate consistent cryptographic keys, derive passwords, or create deterministic identifiers\n  - Derived from user's master Umbrel seed using app ID\n  - Same for each app reinstallation (as long as user keeps same Umbrel seed)\n  - Security: Never expose this directly to users or logs\n  - Example value: `a1b2c3d4e5f6...` (64-character hex string)\n\n• **`$APP_HIDDEN_SERVICE`** - Your app's unique .onion Tor hidden service address\n  - Use case: Display to users for anonymous Tor Browser access\n  - Only accessible via Tor network\n  - Example value: `abcdefghijklmnop.onion`\n\n---\n\n**🌐 Bitcoin & Lightning Integration** (only available when dependencies are declared):\n\n• **`$APP_BITCOIN_DATA_DIR`** - Path to Bitcoin Core data directory\n  - Requires: `dependencies: [\"bitcoin\"]` in umbrel-app.yml\n  - Use case: Access Bitcoin blockchain data and RPC\n  - Example: Mount as read-only volume for blockchain access\n\n• **`$APP_LIGHTNING_NODE_DATA_DIR`** - Path to Lightning Network node data\n  - Requires: `dependencies: [\"lightning\"]` in umbrel-app.yml\n  - Use case: Access LND node data, TLS certs, and macaroons\n  - Example: Connect to user's Lightning node programmatically\n\n• **`$APP_BITCOIN_IP`** - Internal IP address of Bitcoin Core container\n  - Use case: Connect to Bitcoin RPC\n\n• **`$APP_BITCOIN_RPC_PORT`** - Bitcoin Core RPC port (typically 8332)\n  - Use case: Combine with `$APP_BITCOIN_IP` for RPC calls\n\n• **`$APP_BITCOIN_RPC_USER`** - Bitcoin Core RPC username\n  - Use case: Authenticate RPC calls\n\n• **`$APP_BITCOIN_RPC_PASS`** - Bitcoin Core RPC password\n  - Use case: Authenticate RPC calls\n\n• **`$APP_LIGHTNING_NODE_IP`** - Internal IP address of Lightning node\n  - Use case: Connect to LND gRPC or REST API\n\n• **`$APP_LIGHTNING_NODE_GRPC_PORT`** - LND gRPC port (typically 10009)\n  - Use case: Make gRPC calls to Lightning node\n\n• **`$APP_LIGHTNING_NODE_REST_PORT`** - LND REST API port (typically 8080)\n  - Use case: Make REST API calls to Lightning node\n\n---\n\n**🔌 App Proxy Configuration** (only for `app_proxy` service):\n\nThese variables configure Umbrel's authentication proxy that sits in front of your app:\n\n• **`APP_HOST`** - DNS name of your web container (required)\n  - Format: `imagename_servicename_1`\n  - Example: If image is `nginx:alpine` and service is `web`, use `nginx_web_1`\n  - This tells the proxy which container to forward requests to\n\n• **`APP_PORT`** - Internal port your app listens on (required)\n  - The port inside your container (not the external Umbrel port)\n  - Can be string or integer\n  - Example: `3000`, `\"8080\"`, `80`\n\n• **`PROXY_AUTH_ADD`** - Disable Umbrel authentication (optional)\n  - Set to `\"false\"` to disable login requirement (proxy stays active for routing)\n  - Use case: Apps with their own authentication system\n  - Warning: Only disables auth, does not remove proxy service entirely\n\n• **`PROXY_AUTH_WHITELIST`** - Bypass auth for specific URL paths (optional)\n  - Comma-separated list of paths that don't require login\n  - Supports wildcards with `*`\n  - Example: `\"/api/*,/public/*,/health\"`\n  - Use case: Allow public API access while protecting admin pages\n\n• **`PROXY_AUTH_BLACKLIST`** - Force auth for specific URL paths (optional)\n  - Comma-separated list of paths that always require login\n  - Overrides whitelist if both are set\n  - Example: `\"/admin/*,/settings/*\"`\n  - Use case: Protect sensitive sections even if auth is disabled\n\n---\n\n💡 **Tip:** Environment variables can be defined as an object (recommended) or array format. Use object format for better readability.",
+                        "oneOf": [
+                            {
+                                "type": "object",
+                                "additionalProperties": true
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
                                 }
                             }
+                        ],
+                        "examples": [
+                            {
+                                "APP_HOST": "myapp_web_1",
+                                "APP_PORT": "3000",
+                                "DEVICE_NAME": "$DEVICE_HOSTNAME",
+                                "TOR_PROXY": "$TOR_PROXY_IP:$TOR_PROXY_PORT",
+                                "ADMIN_PASSWORD": "$APP_PASSWORD"
+                            }
+                        ]
+                    },
+                    "depends_on": {
+                        "title": "Service Dependencies",
+                        "markdownDescription": "**🔗 Service Dependencies** - Define which services must start before this one.\n\n**How it works:**\n- Docker Compose starts dependencies first\n- Only waits for container to start, not for app to be \"ready\"\n- Useful for ensuring databases start before app containers\n\n**Examples:**\n```yaml\ndepends_on:\n  - db              # Start database first\n  - redis           # Then Redis\n  - migrate         # Then run migrations\n```\n\n⚠️ **Important:** `depends_on` doesn't wait for the service to be \"ready\" (e.g., database accepting connections). Your app should implement retry logic or use health checks.\n\n💡 **Common pattern:**\n```yaml\nservices:\n  app:\n    depends_on:\n      - db\n  db:\n    image: postgres:15\n```",
+                        "type": "array",
+                        "items": {
+                            "type": "string"
                         }
-                    ]
-                }
+                    },
+                    "command": {
+                        "title": "Command Override",
+                        "markdownDescription": "**⚙️ Command Override** - Replace the default command from the Docker image.\n\n**Format Options:**\n\n1. **String format:** `\"npm start\"`\n2. **Array format:** `[\"npm\", \"start\"]` (recommended for complex commands)\n\n**Examples:**\n```yaml\n# String format\ncommand: \"python app.py --debug\"\n\n# Array format (better for arguments with spaces)\ncommand:\n  - python\n  - app.py\n  - --config\n  - /etc/app/config.json\n```\n\n💡 **Tip:** Use array format for commands with multiple arguments or special characters.",
+                        "oneOf": [
+                            {
+                                "type": "string"
+                            },
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            }
+                        ]
+                    },
+                    "user": {
+                        "title": "User",
+                        "markdownDescription": "**👤 User Context** - Specify which user runs the container process.\n\n**Format Options:**\n- Username: `\"nginx\"`, `\"nobody\"`\n- UID: `\"1000\"`, `\"33\"`\n- UID:GID: `\"1000:1000\"`, `\"33:33\"`\n\n**Why use this:**\n- Security: Run as non-root user\n- Permissions: Match host user for volume access\n- Compliance: Follow security best practices\n\n**Examples:**\n```yaml\nuser: \"1000:1000\"    # Run as user ID 1000\nuser: \"nginx\"        # Run as nginx user\nuser: \"nobody\"       # Run as nobody (minimal permissions)\n```\n\n⚠️ **Important:** If your app writes to volumes, ensure this user has write permissions on mounted directories.\n\n💡 **Best Practice:** Avoid running as root (UID 0) when possible for security.",
+                        "type": "string"
+                    },
+                    "networks": {
+                        "title": "Networks",
+                        "markdownDescription": "Networks to connect this service to.",
+                        "oneOf": [
+                            {
+                                "type": "array",
+                                "items": {
+                                    "type": "string"
+                                }
+                            },
+                            {
+                                "type": "object"
+                            }
+                        ]
+                    },
+                    "network_mode": {
+                        "title": "Network Mode",
+                        "markdownDescription": "**🌐 Network Mode** - Advanced network configuration for the container.\n\n**Options:**\n\n• **`bridge`** (default) - Standard Docker networking\n  - Containers get their own network namespace\n  - Can communicate with other containers via internal network\n  - Recommended for most apps\n\n• **`host`** - Share host's network stack\n  - Container uses host's IP address directly\n  - No port mapping needed\n  - ⚠️ **Warning:** Cannot use with `app_proxy` service\n  - Use case: Apps that need to bind to specific host interfaces\n\n• **`none`** - No networking\n  - Container has no network access\n  - Use case: Isolated processing tasks\n\n• **`service:[name]`** - Share another service's network\n  - Example: `\"service:web\"`\n  - Use case: Sidecar containers\n\n**Examples:**\n```yaml\nnetwork_mode: \"host\"           # Use host networking\nnetwork_mode: \"bridge\"         # Default bridge network\nnetwork_mode: \"service:web\"    # Share web service's network\n```\n\n⚠️ **Important for Umbrel:**\n- Using `host` mode requires **disabling** the `app_proxy` service entirely\n- Most apps should use default `bridge` mode\n- Only use `host` mode if your app specifically requires it\n\n💡 **When to use `host` mode:**\n- Multicast/broadcast requirements\n- Low-level network operations\n- Apps that discover services via network scanning",
+                        "type": "string"
+                    }
+                },
+                "additionalProperties": true
             }
+        },
+        "networks": {
+            "title": "Networks",
+            "markdownDescription": "Custom networks for inter-service communication.",
+            "type": "object",
+            "additionalProperties": true
+        },
+        "volumes": {
+            "title": "Named Volumes",
+            "markdownDescription": "Named volumes for persistent data storage.",
+            "type": "object",
+            "additionalProperties": true
         }
     },
-    "required": ["version", "services"],
+    "additionalProperties": true,
     "examples": [
         {
             "title": "Simple Web App",
@@ -118,7 +181,9 @@
                 "services": {
                     "web": {
                         "image": "nginx:alpine",
-                        "volumes": ["${APP_DATA_DIR}/html:/usr/share/nginx/html"]
+                        "volumes": [
+                            "${APP_DATA_DIR}/html:/usr/share/nginx/html"
+                        ]
                     },
                     "app_proxy": {
                         "environment": {
@@ -148,7 +213,9 @@
                             "${APP_DATA_DIR}/data:/app/data",
                             "${UMBREL_ROOT}/data/storage/uploads:/uploads"
                         ],
-                        "depends_on": ["db"]
+                        "depends_on": [
+                            "db"
+                        ]
                     },
                     "db": {
                         "image": "mysql:8",
@@ -156,7 +223,9 @@
                             "MYSQL_ROOT_PASSWORD": "secret",
                             "MYSQL_DATABASE": "myapp"
                         },
-                        "volumes": ["${APP_DATA_DIR}/mysql:/var/lib/mysql"]
+                        "volumes": [
+                            "${APP_DATA_DIR}/mysql:/var/lib/mysql"
+                        ]
                     },
                     "app_proxy": {
                         "environment": {
