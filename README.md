@@ -3,7 +3,7 @@ umbrel-app-spec: enables validation and autocompletion for umbrel app packaging.
 
 ## configuration validation and auto-complete
 
-In order to minimize friction and maximize productivity, Umbrel provides its own [schema.json](https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/umbrel-app.schema.json) for `umbrel-app.yml`. If your editor supports YAML schema validation, it's definitely recommended to set it up:
+In order to minimize friction and maximize productivity, Umbrel provides its own [umbrel-app.schema.json](https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/umbrel-app.schema.json) for `umbrel-app.yml` and [docker-compose.schema.json](https://raw.githubusercontent.com/Mr-Sunglasses/umbrel-app-spec/refs/heads/master/docker-compose.schema.json) for `docker-compose.yml` for umbrel apps. If your editor supports YAML schema validation, it's definitely recommended to set it up:
 
 ### Setup for [VS Code](https://code.visualstudio.com/)
 
